@@ -1,3 +1,4 @@
+import os
 import re
 from pdfminer.high_level import extract_text
 import spacy
@@ -75,9 +76,12 @@ def extract_name(resume_text):
     return None
 
 if __name__ == '__main__':
-    resume_paths = [r"resume.pdf"]
+    resume_directory = "./resumes"
 
-    for resume_path in resume_paths:
+    # List all files in the directory
+    resume_files = [os.path.join(resume_directory, f) for f in os.listdir(resume_directory)]
+    
+    for resume_path in resume_files:
         text = extract_text_from_pdf(resume_path)
 
         print("Resume:", resume_path)
