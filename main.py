@@ -8,48 +8,30 @@ def extract_text_from_pdf(pdf_path):
     return extract_text(pdf_path)
 
 def extract_contact_number_from_resume(text):
-    contact_number = None
-
     # Use regex pattern to find a potential contact number
     pattern = r"(?:\+212|06|07)([ -]?\d){9}"
-    match = re.search(pattern, text)
-    if match:
-        contact_number = match.group()
-
-    return contact_number
+    return match.group() if (match := re.search(pattern, text)) else None
 
 def extract_email_from_resume(text):
-    email = None
-
     # Use regex pattern to find a potential email address
     pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
-    match = re.search(pattern, text)
-    if match:
-        email = match.group()
-
-    return email
+    return match.group() if (match := re.search(pattern, text)) else None
 
 def extract_skills_from_resume(text, skills_list):
     skills = []
 
     for skill in skills_list:
-        pattern = r"\b{}\b".format(re.escape(skill))
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
+        pattern = f"\b{re.escape(skill)}\b"
+        if match := re.search(pattern, text, re.IGNORECASE):
             skills.append(skill)
 
     return skills
 
 def extract_education_from_resume(text):
-    education = []
-
     # Use regex pattern to find education information
     pattern = r"(?i)(?:Bsc|\bB\.\w+|\bM\.\w+|\bPh\.D\.\w+|\bBachelor(?:'s)?|\bMaster(?:'s)?|\bPh\.D)\s(?:\w+\s)*\w+"
     matches = re.findall(pattern, text)
-    for match in matches:
-        education.append(match.strip())
-
-    return education
+    return [match.strip() for match in matches]
 
 def extract_name(resume_text):
     nlp = spacy.load('en_core_web_sm')
@@ -80,39 +62,34 @@ if __name__ == '__main__':
 
     # List all files in the directory
     resume_files = [os.path.join(resume_directory, f) for f in os.listdir(resume_directory)]
-    
+
     for resume_path in resume_files:
         text = extract_text_from_pdf(resume_path)
 
         print("Resume:", resume_path)
 
-        name = extract_name(text)
-        if name:
+        if name := extract_name(text):
             print("Name:", name)
         else:
             print("Name not found")
 
-        contact_number = extract_contact_number_from_resume(text)
-        if contact_number:
+        if contact_number := extract_contact_number_from_resume(text):
             print("Contact Number:", contact_number)
         else:
             print("Contact Number not found")
 
-        email = extract_email_from_resume(text)
-        if email:
+        if email := extract_email_from_resume(text):
             print("Email:", email)
         else:
             print("Email not found")
 
         skills_list = ['Python', 'Data Analysis', 'Machine Learning', 'Communication', 'Project Management', 'Deep Learning', 'SQL', 'Tableau']
-        extracted_skills = extract_skills_from_resume(text, skills_list)
-        if extracted_skills:
+        if extracted_skills := extract_skills_from_resume(text, skills_list):
             print("Skills:", extracted_skills)
         else:
             print("No skills found")
 
-        extracted_education = extract_education_from_resume(text)
-        if extracted_education:
+        if extracted_education := extract_education_from_resume(text):
             print("Education:", extracted_education)
         else:
             print("No education information found")
