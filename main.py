@@ -8,6 +8,7 @@ import json
 def extract_data_from_resume(pdf_path):
     text = extract_text(pdf_path)
 
+    
     return {
         "name": extract_name(text),
         "age": 20,
