@@ -62,7 +62,7 @@ def extract_education_from_resume(text):
 
 
 def extract_name(resume_text):
-    nlp = spacy.load("en_core_web_sm")
+    nlp = spacy.load("fr_core_news_sm")
     matcher = Matcher(nlp.vocab)
 
     # Define name patterns
@@ -79,7 +79,18 @@ def extract_name(resume_text):
             {"POS": "PROPN"},
             {"POS": "PROPN"},
         ],  # First name, Middle name, Middle name, and Last name
-        # Add more patterns as needed
+        [
+            {"POS": "PROPN"},
+            {"IS_PUNCT": True, "OP": "?"},  # Optional hyphen
+            {"POS": "PROPN"},
+            {"POS": "PROPN"},
+        ],  # First name with hyphen and Last name
+        [
+            {"POS": "PROPN"},
+            {"POS": "PROPN"},
+            {"IS_PUNCT": True, "OP": "?"},
+            {"POS": "PROPN"},
+        ],  # First name, hyphenated middle name, and Last name
     ]
 
     for pattern in patterns:
@@ -93,6 +104,7 @@ def extract_name(resume_text):
         return span.text
 
     return None
+
 
 
 if __name__ == "__main__":
