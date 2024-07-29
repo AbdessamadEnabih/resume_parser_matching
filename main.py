@@ -1,122 +1,132 @@
+from fastapi import FastAPI, UploadFile, File
+from pydantic import BaseModel
+from typing import List, Dict, Any
+import extractDataFromResume
 import os
-import re
-from pdfminer.high_level import extract_text
-import spacy
-from spacy.matcher import Matcher
 import json
-
-def extract_data_from_resume(pdf_path):
-    text = extract_text(pdf_path)
-
-    
-    return {
-        "name": extract_name(text),
-        "age": 20,
-        "email": extract_email_from_resume(text),
-        "phone": extract_contact_number_from_resume(text),
-        "education": extract_education_from_resume(text),
-        "skills": extract_skills_from_resume(
-            text,
-            [
-                "Python",
-                "Data Analysis",
-                "Machine Learning",
-                "Communication",
-                "Project Management",
-                "Deep Learning",
-                "SQL",
-                "Tableau",
-            ],
-        ),
-    }
+from fastapi.middleware.cors import CORSMiddleware
+import logging
+from fastapi.responses import JSONResponse
 
 
-def extract_contact_number_from_resume(text):
-    # Use regex pattern to find a potential contact number
-    pattern = r"(?:\+212|06|07)([ -]?\d){9}"
-    return match.group() if (match := re.search(pattern, text)) else None
+logging.basicConfig(level=logging.DEBUG)
 
+app = FastAPI()
 
-def extract_email_from_resume(text):
-    # Use regex pattern to find a potential email address
-    pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
-    return match.group() if (match := re.search(pattern, text)) else None
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:4200"],
+    allow_credentials=True,
+    allow_methods=["*"], 
+    allow_headers=["*"], 
+)
 
+if not os.path.exists('resumes'):
+    os.makedirs('resumes')
 
-def extract_skills_from_resume(text, skills_list):
-    skills = []
+class Experience(BaseModel):
+    job_title: str = None
+    company_name: str = None
+    dateStart: str = None
+    dateEnd: str = None
+    nbrMonths: int = None
+    missions: str = None
+    technologies: List[str] = []
+    total_experience: Dict[str, int] = {}
 
-    for skill in skills_list:
-        pattern = f"\b{re.escape(skill)}\b"
-        if match := re.search(pattern, text, re.IGNORECASE):
-            skills.append(skill)
+class Project(BaseModel):
+    project: str = None
+    description: str = None
+    technologies: List[str] = []
 
-    return skills
+class Education(BaseModel):
+    degree_type: str = None
+    degree_name: str = None
+    institution: str = None
+    dateStart: str = None
+    dateEnd: str = None
 
+class SkillSet(BaseModel):
+    hard_skills: List[str] = []
+    soft_skills: List[str] = []
 
-def extract_education_from_resume(text):
-    # Use regex pattern to find education information
-    pattern = r"(?i)(?:Bsc|\bB\.\w+|\bM\.\w+|\bPh\.D\.\w+|\bBachelor(?:'s)?|\bMaster(?:'s)?|\bPh\.D)\s(?:\w+\s)*\w+"
-    matches = re.findall(pattern, text)
-    return [match.strip() for match in matches]
+class Certification(BaseModel):
+    certification_name: str = None
+    institution: str = None
+    year_obtained: str = None
 
+class Language(BaseModel):
+    language: str = None
+    level: str = None
 
-def extract_name(resume_text):
-    nlp = spacy.load("fr_core_news_sm")
-    matcher = Matcher(nlp.vocab)
+class CVResponse(BaseModel):
+    firstName: str = None
+    lastName: str = None
+    current_position: str = None
+    civilite: str = None
+    phone_number: str = None
+    age: int = None
+    email: str = None
+    address: str = None
+    url: str = None
+    personalProfile: str = None
+    experience: List[Experience] = []
+    projects: List[Project] = []
+    education: List[Education] = []
+    skills: SkillSet = None
+    certifications: List[Certification] = []
+    languages: List[Language] = []
+    interests: List[str] = []
 
-    # Define name patterns
-    patterns = [
-        [{"POS": "PROPN"}, {"POS": "PROPN"}],  # First name and Last name
-        [
-            {"POS": "PROPN"},
-            {"POS": "PROPN"},
-            {"POS": "PROPN"},
-        ],  # First name, Middle name, and Last name
-        [
-            {"POS": "PROPN"},
-            {"POS": "PROPN"},
-            {"POS": "PROPN"},
-            {"POS": "PROPN"},
-        ],  # First name, Middle name, Middle name, and Last name
-        [
-            {"POS": "PROPN"},
-            {"IS_PUNCT": True, "OP": "?"},  # Optional hyphen
-            {"POS": "PROPN"},
-            {"POS": "PROPN"},
-        ],  # First name with hyphen and Last name
-        [
-            {"POS": "PROPN"},
-            {"POS": "PROPN"},
-            {"IS_PUNCT": True, "OP": "?"},
-            {"POS": "PROPN"},
-        ],  # First name, hyphenated middle name, and Last name
-    ]
+@app.post("/upload/", response_model=CVResponse)
+async def upload_cv(file: UploadFile = File(...)):
+    print("Execution de la methode post")
+    file_location = f"resumes/{file.filename}"
+    with open(file_location, "wb+") as file_object:
+        file_object.write(file.file.read())
 
-    for pattern in patterns:
-        matcher.add("NAME", patterns=[pattern])
+    try:
+        extracted_text = extractDataFromResume.extract_text_from_pdf(file_location)
+        prompt_text = extractDataFromResume.construct_prompt(extracted_text)
+        gpt_response = extractDataFromResume.send_prompt_to_gpt(prompt_text)
 
-    doc = nlp(resume_text)
-    matches = matcher(doc)
-
-    for match_id, start, end in matches:
-        span = doc[start:end]
-        return span.text
-
-    return None
-
-
+        if gpt_response:
+            data = json.loads(gpt_response)
+            if 'experience' in data:
+                data['experience'], total_years, remaining_months = extractDataFromResume.add_months_to_experiences(data['experience'])
+                for exp in data['experience']:
+                    exp['total_experience'] = {
+                        'total_years': total_years,
+                        'remaining_months': remaining_months
+                    }
+                cv_response = CVResponse(
+                    firstName=data.get('firstName', ''),
+                    lastName=data.get('lastName', ''),
+                    current_position=data.get('current_position', ''),
+                    civilite=data.get('civilite', ''),
+                    phone_number=data.get('phone_number', ''),
+                    age=data.get('age', 0),
+                    email=data.get('email', ''),
+                    address=data.get('address', ''),
+                    url=data.get('url', ''),
+                    personalProfile=data.get('personalProfile', ''),
+                    experience=[Experience(**exp) for exp in data.get('experience', [])],
+                    projects=[Project(**proj) for proj in data.get('projects', [])],
+                    education=[Education(**edu) for edu in data.get('education', [])],
+                    skills=SkillSet(**data.get('skills', {'hard_skills': [], 'soft_skills': []})),
+                    certifications=[Certification(**cert) for cert in data.get('certifications', [])],
+                    languages=[Language(**lang) for lang in data.get('languages', [])],
+                    interests=data.get('interests', [])
+                )
+                return cv_response
+    except Exception as e:
+        return JSONResponse(content={"error": "An error occurred while processing the file."}, status_code=500)
+    finally:
+        os.remove(file_location)
+@app.get("/")
+async def home():
+    return {"message":"Welcome to Cvtheque"}
 
 if __name__ == "__main__":
-    resume_directory = "./resumes"
-
-    # List all files in the directory
-    resume_files = [
-        os.path.join(resume_directory, f) for f in os.listdir(resume_directory)
-    ]
-
-    resumes_data = [
-        extract_data_from_resume(resume_path) for resume_path in resume_files
-    ]
-
-    print(json.dumps(resumes_data))
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5000)
