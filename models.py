@@ -2,31 +2,31 @@ import ast
 import json
 from typing import List, Optional
 from pydantic import BaseModel, Field
-
 class Experience(BaseModel):
     job_title: str = ""
     company_name: str = ""
     dateStart: str = ""
     dateEnd: str = ""
-    nbrMonths: Optional[int] = None
+    nbrMonths: Optional[int] = 0
     missions: List[str] = []
-    technologies: Optional[List[str]] = None
+    technologies: List[str] = []  # Changer de Optional[List[str]] à List[str]
 
 class Education(BaseModel):
     degree_type: str = ""
     degree_name: str = ""
     institution: str = ""
-    dateStart: Optional[str] = None
+    dateStart: str = ""  
     dateEnd: str = ""
 
 class Skills(BaseModel):
     hard_skills: List[str] = []
     soft_skills: List[str] = []
 
-class Certifications(BaseModel):
-    certificationName: str = ""
+class Certification(BaseModel):
+    certification_name: str = ""
     institution: str = ""
     year_obtained: str = ""
+    type: str = ""
 
 class CVResponse(BaseModel):
     firstName: str = ""
@@ -34,15 +34,15 @@ class CVResponse(BaseModel):
     current_position: str = ""
     civilite: str = ""
     phone_number: str = ""
-    age: int = 0
     email: str = ""
     address: str = ""
-    url: Optional[str] = None
-    personalProfile: Optional[str] = None
+    url: Optional[str] = ""  # Garder Optional mais avec valeur par défaut vide
+    personalProfile: Optional[str] = ""  # Garder Optional mais avec valeur par défaut vide
     experience: List[Experience] = []
     education: List[Education] = []
     skills: Skills = Skills()
-    certifications: List[Certifications] = []
+    competences_operationnelles: List[str] = []
+    certifications: List[Certification] = []
     languages: List[str] = []
     interests: List[str] = []
 
