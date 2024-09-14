@@ -8,37 +8,9 @@ from docx import Document
 import os
 import mammoth
 import mysql.connector
+from dotenv import load_dotenv
 
 
-# Récuperation des competences Operationnelles de la bdd
-def get_competences_from_db():
-    try:
-        conn = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="admin",
-            database="cvtheque"
-        )
-        cursor = conn.cursor()
-
-        # Extraction des compétences opérationnelles
-        cursor.execute("SELECT competenceOperationnelle FROM competenceoperationnelle")
-        competences = cursor.fetchall()
-
-        # Convertir la liste de tuples en une liste de chaînes
-        competences_list = [comp[0] for comp in competences]
-
-        return competences_list
-
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        return []
-
-    finally:
-        if conn.is_connected():
-            cursor.close()
-            conn.close()
-      
 def extract_text_from_pdf(pdf_path):
     try:
         text = extract_text(pdf_path)
@@ -199,13 +171,13 @@ def construct_prompt(extracted_text):
     Resume text:
     {extracted_text}
     """
-
+load_dotenv()
+openai.api_key = os.getenv('OPENAI_API_KEY')
 def send_prompt_to_gpt(prompt_text):
     conversation = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": prompt_text},
     ]
-    openai.api_key = ""
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4o",
