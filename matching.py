@@ -141,12 +141,10 @@ def get_skills(
         )
 
 
-def match_candidate_with_job(
-    resume_data: Dict[str, List[Union[str, int]]], job_description: str
-) -> Dict[str, Union[float, List[str]]]:
+def match_candidate_with_job(resume_data, job_description):
     """
     Matches a candidate with a job description using fuzzy matching.
-    Returns a dictionary with the score and matched skills.
+    Returns a dictionary with the score, matched skills, and experience match.
     """
 
     # Tokenize and preprocess text
@@ -179,7 +177,30 @@ def match_candidate_with_job(
     # Calculate the match score based on the number of matched skills
     score = len(matched_skills) / len(candidate_skills) if candidate_skills else 0
 
-    return {"score": score, "matched_skills": list(matched_skills)}
+    # Add a check for minimum years of experience
+    min_years_experience = 8  # Adjust this value as needed
+    
+    # Handle both integer and list cases for experience-total
+    if isinstance(resume_data["experience-total"], int):
+        total_months = resume_data["experience-total"]
+    elif isinstance(resume_data["experience-total"], list):
+        total_months = sum(exp.get("nbrMonths", 0) for exp in resume_data["experience-total"])
+    else:
+        raise ValueError("Invalid type for experience-total")
+
+    candidate_years_experience = total_months // 12
+    candidate_years_experience = total_months // 12
+    
+    if candidate_years_experience >= min_years_experience:
+        experience_match = "Experienced"
+    else:
+        experience_match = f"Not enough experience ({candidate_years_experience} years)"
+
+    return {
+        "score": score,
+        "matched_skills": list(matched_skills),
+        "experience_match": experience_match
+    }
 
 
 def main():
@@ -189,13 +210,12 @@ def main():
     # Example usage
     job_description = """
     We're looking for a Software Development Manager with expertise and passion in building teams, coaching individuals, and solving difficult problems in distributed systems, and highly available services.
-
+    
     Our work environment is very technically challenging: you need to understand complex code very quickly. You must be able to conceptualize the interaction of software components and products together in a stack. You need to be prepared to expect the unexpected and have a strong focus on customer satisfaction. We're looking for people who are fast learners, highly motivated, and have great communications skills. If the opportunity to resolve real-world customer problems in the world's most important software products is exciting to you, then come join us. You can be guaranteed never to be bored!
-
+    
     As a manager, you will apply your technical and organizational skills to solve delivery, support, and operational optimizations, while driving execution of roadmap commitments. Build enhancements within an existing software architecture and occasionally suggest improvements to the architecture. You will work with a variety of technical, functional, and business stakeholders to ensure consistent delivery of product advancements.
 
     Responsibilities
-
     As a manager, you will apply your knowledge of software architecture to manage software development tasks associated with developing, debugging or designing software applications, operating systems and databases according to provided design specifications.
     Build enhancements within an existing software architecture and suggest improvements to the architecture.
     Build and mentor a high-performing development team, fostering a culture of collaboration, innovation, and continuous improvement.
@@ -203,7 +223,6 @@ def main():
     Collaborate with product management, architecture, and other cross-functional teams to define project requirements and priorities.
     Communicate effectively with stakeholders to provide updates on project status, solicit feedback, and address concerns or issues as they arise.
     Required Qualifications:
-
     Have 8+ years of professional experience in developing large scale web applications, UI, high performance REST APIs.
     Hands-on experience of Micro-service architecture and modern UI framework.
     BS or MS in Computer Science or an equivalent area
@@ -220,18 +239,18 @@ def main():
     Knowledge of Project Management concepts / software (Jira, Sprints, etc.) and ability to multi-task and deal with shifting priorities
     Should have excellent written (including product documentation) and verbal (with presentation) communication skill
     Strong analytical and problem-solving skills.
-
     About Us
-
     As a world leader in cloud solutions, Oracle uses tomorrow"""
     result = match_candidate_with_job(candidate_info, job_description)
 
     print(f"Candidate Score: {result['score']:.2f}")
     print("Matched Skills:", result["matched_skills"])
     print("Candidate Total Experience:", candidate_info["experience-total"])
+    print("Experience Match:", result["experience_match"])
 
     # Update candidate_info with matched skills
     candidate_info["matched_skills"] = result["matched_skills"]
+    candidate_info["experience_match"] = result["experience_match"]
 
 
 if __name__ == "__main__":
