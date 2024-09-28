@@ -171,14 +171,14 @@ def construct_prompt(extracted_text):
     Resume text:
     {extracted_text}
     """
-load_dotenv()
-openai.api_key = os.getenv('OPENAI_API_KEY')
+
 def send_prompt_to_gpt(prompt_text):
     conversation = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": prompt_text},
     ]
     try:
+        openai.api_key =  ""
         response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=conversation,

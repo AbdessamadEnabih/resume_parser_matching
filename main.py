@@ -1,13 +1,20 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import extractDataFromResume
 import os
 import json
+import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from fastapi.responses import JSONResponse
 from models import Experience, Education, Skills, Certification, CVResponse
+from repositories.repositoryOffre import get_offre,getAllOffres
+from repositories.repositoryCandidat import get_candidats,get_candidatById
+from datetime import datetime, timedelta
+from matchingTest import get_dict_offre,faire_matching,faire_matching_candidat
+from database import get_db
 
 logging.basicConfig(level=logging.DEBUG)
 app = FastAPI()
@@ -69,6 +76,27 @@ async def upload_cv(file: UploadFile = File(...)):
 async def home():
     return {"message":"Welcome to Cvtheque"}
 
+@app.post("/processOffre/{idOffre}")
+async def processOffre(idOffre: str, db : Session = Depends(get_db)):
+    offre = get_offre(idOffre,db) 
+    if offre is None:
+        raise HTTPException(status_code=404, detail="Offre non trouvée")
+    results = faire_matching(offre,db)    
+    return {"message": "Matching effectué", "results": results}
+    
+  
+@app.post("/matchOffreCandidat/{idOffre}/{idCandidat}")
+async def match_offre_candidat(idOffre:str,idCandidat:str, db:Session = Depends(get_db)):
+    offre = get_offre(idOffre,db)
+    candidat = get_candidatById(idCandidat,db)
+    # Vérification si l'offre et le candidat existent
+    if offre is None:
+        raise HTTPException(status_code=404, detail="Offre non trouvée")
+    
+    if candidat is None:
+        raise HTTPException(status_code=404, detail="Candidat non trouvé")
+    return faire_matching_candidat(offre,candidat,db)
+    
+
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=5000) 
